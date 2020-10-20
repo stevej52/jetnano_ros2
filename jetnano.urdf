@@ -1,0 +1,241 @@
+﻿<?xml version = "1.0"?>
+<robot name="jetnano" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:property name="wheel_thickness" value="0.15"/>
+<xacro:property name="wheel_diameter" value="0.3"/>
+<xacro:property name="wheel_guide_thickness" value="0.05"/>
+<xacro:property name="wheel_guide_length" value="0.4"/>
+<xacro:property name="wheel_guide_height" value="0.1"/>
+<xacro:property name="body_length" value="0.6"/>
+<xacro:property name="body_width" value="0.5"/>
+<xacro:property name="body_height" value="0.3"/>
+<xacro:property name="camera_width" value="0.01"/>
+<xacro:property name="wheel_mass" value="0.5"/>
+<xacro:property name="body_mass" value="1"/>
+<xacro:property name="guide_mass" value="0.5"/>
+<xacro:property name="axel_mass" value="0.5"/>
+<xacro:property name="camera_mass" value="0.1"/>
+<xacro:property name="kinect_mass" value="0.5"/>
+<xacro:property name="pi" value="3.1415"/>
+
+<xacro:macro name="default_inertial" params="mass">
+  <inertial>
+    <mass value="${mass}"/>
+    <inertia ixx="0.1" ixy="0.0" ixz="0.0" iyy="0.1" iyz="0.0" izz="0.1"/>
+  </inertial>
+</xacro:macro>
+
+
+<xacro:macro name="shape_visual" params="length width height color">
+  <visual>
+    <pose xyz="0 0 1.0"/>
+    <geometry>
+      <box size="${length} ${width} ${height}"/>
+    </geometry>
+    <material name="${color}"/>
+  </visual>
+  <collision>
+    <geometry>
+      <box size="${length} ${width} ${height}"/>
+    </geometry>    
+  </collision>
+
+</xacro:macro>
+
+<xacro:macro name="camera_visual" params="length width height color">
+  <visual>
+    <geometry>
+      <box size="${length} ${width} ${height}"/>
+    </geometry>
+    <material name="${color}"/>
+  </visual>
+  <collision>
+    <geometry>
+      <box size="${length} ${width} ${height}"/>
+    </geometry>    
+  </collision>
+
+</xacro:macro>
+
+<xacro:macro name="wheel_guide_macro" params="prefix reflect">
+<link name="${prefix}_wheel_guide">
+  <visual>
+    <origin xyz="0 ${reflect*wheel_guide_thickness/2} 0"/>
+    <geometry>
+      <box size="${wheel_guide_length} ${wheel_guide_thickness} ${wheel_guide_height}"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <geometry>
+      <box size="${wheel_guide_length} ${wheel_guide_thickness} ${wheel_guide_height}"/>
+    </geometry>    
+  </collision>
+  <xacro:default_inertial mass="${guide_mass}"/>
+</link>
+<joint name="${prefix}_wheel_guide_joint" type="fixed">
+  <axis xyz="0 1 0" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="${prefix}_wheel_guide"/>
+  <origin xyz="0 0.25 0" rpy="0 0 0"/>
+  <!--limit effort="1000.0" lower="${-pi/8}" upper="${pi/8}" velocity="0.5"/> For setting joint mobility around the Y axis --> 
+</joint>
+<gazebo reference="${prefix}_wheel_guide">
+  <gravity value="true"/>
+    <minDepth>0.00001</minDepth>
+  <material>Gazebo/Grey</material>
+</gazebo>
+</xacro:macro>
+
+<xacro:macro name="wheel_axle_macro" params="prefix suffix reflect1 reflect2"> <!--Reflect1 represents left-right reflect, reflect2 represents front-back reflect -->
+<link name="${prefix}_${suffix}_wheel_axle">
+  <visual>
+    <origin xyz="0 0 0" rpy="0 ${reflect2*2.0*pi/3} 0"/>
+    <geometry>
+      <cylinder radius="${wheel_guide_height*0.2}" length="${wheel_guide_length/2}"/>
+    </geometry>
+   <material name="black"/>
+  </visual>
+  <collision>
+    <geometry>
+      <cylinder radius="${wheel_guide_height*0.2}" length="${wheel_guide_length/2}"/>
+    </geometry>    
+  </collision>
+  <xacro:default_inertial mass="${axel_mass}"/>
+</link>
+<joint name="${prefix}_${suffix}_wheel_axle_joint" type="fixed">
+  <parent link="${prefix}_wheel_guide"/>
+  <child link="${prefix}_${suffix}_wheel_axle"/>
+  <origin xyz="${reflect2*wheel_guide_length/2} ${reflect1* wheel_guide_thickness/2} ${-wheel_guide_height}" rpy="0 0 0"/>
+</joint>
+<gazebo reference="${prefix}_${suffix}_wheel_axle">
+  <gravity value="true"/>
+    <minDepth>0.00001</minDepth>
+  <material>Gazebo/Grey</material>
+</gazebo>
+</xacro:macro>
+
+<xacro:macro name="wheel_position_macro" params="prefix suffix reflect1 reflect2">
+  <link name="${prefix}_${suffix}_wheel">
+    <visual>
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry>
+        <cylinder radius="${wheel_diameter/2}" length="${wheel_thickness}"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry>
+        <cylinder radius="${wheel_diameter/2}" length="${wheel_thickness}"/>
+      </geometry>  
+    <surface>
+      <bounce>
+        <restitution_coefficient>0.0</restitution_coefficient>
+        <threshold>0</threshold>
+      </bounce>
+    </surface>  
+  </collision>
+  <xacro:default_inertial mass="${wheel_mass}"/>
+</link>
+<joint name="${prefix}_${suffix}_wheel_joint" type="continuous">
+  <axis xyz="0 1 0"/>
+  <parent link="${prefix}_${suffix}_wheel_axle"/>
+  <child link="${prefix}_${suffix}_wheel"/>
+  <origin xyz="${reflect2*body_length/6.0} ${reflect1*wheel_thickness/2} -${body_height/4.0}"/>
+</joint>
+<gazebo reference="${prefix}_${suffix}_wheel">
+  <mu1 value="200.0"/>
+  <mu2 value="100.0"/>
+  <kp value="1.0e+6"/>
+  <kd value="1.0"/>
+  <gravity value="true"/>
+  <maxVel>0.0000001</maxVel>
+  <minDepth>0.00001</minDepth>
+  <material>Gazebo/Black</material>
+</gazebo>
+<!--Added Transmission Code -->
+<transmission name="${prefix}_${suffix}_wheel_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <actuator name="${prefix}_${suffix}_wheel_motor">
+    <hardwareInterface>VelocityJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+    <joint name="${prefix}_${suffix}_wheel_joint">
+      <hardwareInterface>VelocityJointInterface</hardwareInterface>
+    </joint>
+</transmission>
+</xacro:macro>
+
+
+<material name="white">
+  <color rgba="1 1 1 1"/>
+</material>
+<material name="black">
+  <color rgba="0 0 0 1"/>
+</material>
+<material name="blue">
+  <color rgba="0 0 0.9 1"/>
+</material>
+<material name="green">
+  <color rgba="0 0.8 0 1"/>
+</material>
+
+<!--link name="base_footprint"/>
+<joint name="base_joint" type="fixed" >
+   <parent link="base_link" />
+   <child link="base_footprint" />
+   <origin xyz="0 0 -0.57325" rpy="0 0 0" />
+</joint-->
+
+<link name="map" />
+
+<joint name="map_to_base_link=" type="fixed">
+  <parent link="map"/>
+  <child link="base_link"/>
+</joint>
+
+<link name="base_link" />
+
+<joint name="base_link_to_odom=" type="fixed">
+  <parent link="base_link"/>
+  <child link="odom"/>
+</joint>
+
+<link name="odom"/>
+
+
+
+<link name="camera_link">
+  <xacro:camera_visual length="0.01" width="${body_width/12.0}" height="${body_width/12.0}" color="black"/>
+  <xacro:default_inertial mass="${camera_mass}"/>
+</link>
+<joint name="camera_joint" type="fixed">
+  <parent link="odom"/>
+  <child link="camera_link"/>
+  <origin xyz="-0.08 0 0" rpy="0 0 -3.05"/>
+</joint>
+<link name="laser_link">
+ <visual>
+    <pose>0 0 0.036 0 0 0</pose>
+
+   </visual>
+  <collision>
+    
+  </collision>
+  <!--xacro:shape_visual length="${body_width/6.0}" width="${body_width/2.0}" height="${body_height/3}" color="blue"/-->
+  <xacro:default_inertial mass="${kinect_mass}"/>
+</link>
+<joint name="laser_joint" type="fixed">
+  <axis xyz="0 1 0" />
+  <parent link="odom"/>
+  <child link="laser_link"/>
+  <origin xyz="-0.02 0 0" rpy="0 0 0"/>
+</joint>
+
+
+
+
+
+
+</robot>
